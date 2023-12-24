@@ -29,6 +29,8 @@ def Cosine(side_A, side_B, angle_C):
 
 debug_before = {}
 debug_after = {}
+debug_Up = {}
+debug_Down = {}
 
 # 抬升前力分析
 def Before(Line_OA, Line_AB, Line_BC, Line_CO, Line_CD, Line_CE, Mass, Gravity):
@@ -102,7 +104,7 @@ def After(Line_OA, Line_AB, Line_BC, Line_CO, Line_CD, Line_CE, Mass, Gravity):
     debug_after['剪力圖D點左側面積'] = Aa
     debug_after['剪力圖D點右側面積'] = Ab
 
-    return Force_AB, Force_DE, Force_C, θ, Ra, Rb, bool, Mmax, angle_D
+    return Force_AB, Force_DE, Force_C, θ, Ra, Rb, bool, Mmax, angle_D, angle_B
 
 # 鋼管
 def Pipe(a, b, c):
@@ -111,15 +113,15 @@ def Pipe(a, b, c):
     return A, I
 
 #上拉桿最大應力點
-def abc(Mmax, y, I, Force_DE, angle_D, A):
+def MaxPoint(Mmax, y, I, Force_DE, angle_D, A):
     sigma_Max = (-Mmax * (y/1000) / I) / (10**6)
     sigma = (Force_DE * cos(angle_D) / A)
     sigma_toatl = (sigma_Max + sigma)
     return sigma_Max, sigma, sigma_toatl
 
 # 安全係數
-def SafetyFactor(a, b, c, d):
-    sf = (a * (10**6) * b * 2) / ((c/1000) * d)
+def SafetyFactor(Syt_Pipe, I, Rb, d):
+    sf = (Syt_Pipe * (10**6) * I * 2) / ((Rb/1000) * d)
     return sf
 
 # 銷
@@ -127,9 +129,61 @@ def Pin(Fab, W, Syt):
     d = (1.5*(4 * Fab * W) / (math.pi * (Syt / 2))) ** (1 / 3)
     return d
 
-def welding(Pa, Ptr, h, A, I):
+# 上焊接
+def Tau_Up(F, angle_B, d, l, h, t, Sut):
+    d = d/1000
+    l = l/1000
+    h = h/1000
+    t = t/1000
+    Ptr = F * cos(90 - angle_B)
+    Pa = F * sin(90 - angle_B)
+    I = ((d**2 * (3 * l + h)) / 6) * t
+    A = 2 * (l + h)
+    tau2 = (Pa / A) + ((l * Ptr) * (h / 2)) / I
+    tau1 = Ptr / A
+    tau = math.sqrt(tau2**2 + tau1**2) * 10**(-6)
+    tau_allow = (0.3 * Sut) / 2
+
+    bool = False
+    if tau_allow > tau:
+        bool = True
+
+    debug_Up["Ptr"] = Ptr
+    debug_Up["Pa"] = Pa
+    debug_Up["I"] = I
+    debug_Up["A"] = A
+    debug_Up["tau1"] = tau1
+    debug_Up["tau2"] = tau2
+
+    return tau, bool, tau_allow
+
+# 下焊接
+def Tau_Down(F, d, l, h, t, Sut):
+    d = d/1000
+    l = l/1000
+    h = h/1000
+    t = t/1000
+    Ptr = 0
+    Pa = F
+    I = (d**2 * ((3 * l + h)) / 6) * t
+    A = 2 * (l + h)
+    tau2 = (Pa / A) + ((l * Ptr) * (h / 2)) / I
+    tau1 = Ptr / A
+    tau = math.sqrt(tau2**2 + tau1**2) * 10**(-6)
+    tau_allow = (0.3 * Sut) / 2
     
-    return 
+    bool = False
+    if tau_allow > tau:
+        bool = True
+
+    debug_Down["Ptr"] = Ptr
+    debug_Down["Pa"] = Pa
+    debug_Down["I"] = I
+    debug_Down["A"] = A
+    debug_Down["tau1"] = tau1
+    debug_Down["tau2"] = tau2
+
+    return tau, bool
 
 # 檢測用
 def check_debug_before(num):
@@ -140,4 +194,14 @@ def check_debug_before(num):
 def check_debug_after(num):
     print("抬升後的其他數據")
     for key, value in debug_after.items():
+        print(f"{key}: {round(value, num)}")
+
+def check_debug_Up(num):
+    print("上焊接的其他數據")
+    for key, value in debug_Up.items():
+        print(f"{key}: {round(value, num)}")
+
+def check_debug_Down(num):
+    print("下焊接的其他數據")
+    for key, value in debug_Down.items():
         print(f"{key}: {round(value, num)}")
